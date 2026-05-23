@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Snake de Sílabas - Juego Educativo Infantil</title>
+  <meta name="description" content="Juego educativo infantil para practicar lectura, reconocimiento de sílabas y formación de palabras. ¡Acompaña a la viborita a comer sílabas!">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐍</text></svg>">
+  <link rel="stylesheet" href="./assets/css/style.css">
+</head>
+<body>
+
+  <!-- ============ PANTALLA DE INICIO ============ -->
+  <div id="menu-screen" class="screen">
+    <div class="menu-container">
+      <!-- Logo -->
+      <div class="logo-section">
+        <div class="logo-icon">🐍</div>
+        <h1 class="game-title">Snake de Sílabas</h1>
+        <p class="game-subtitle">¡Aprende a leer jugando!</p>
+      </div>
+
+      <!-- Nombre del jugador -->
+      <div class="menu-section">
+        <label for="player-name" class="menu-label">Tu nombre:</label>
+        <input type="text" id="player-name" class="menu-input" placeholder="Escribe tu nombre..." maxlength="15" autocomplete="off">
+      </div>
+
+      <!-- Selección de personaje -->
+      <div class="menu-section">
+        <label class="menu-label">Elige tu viborita: (¡DESBLOQUEALAS A TODAS!)</label>
+        <div id="character-grid" class="character-grid">
+          <div class="character-card selected" data-character="lili">
+            <div class="character-preview" style="background: #4ECDC4;">
+              <svg viewBox="0 0 60 60" class="snake-svg">
+                <circle cx="30" cy="30" r="18" fill="#45B7D1"/>
+                <circle cx="24" cy="25" r="4" fill="white"/>
+                <circle cx="36" cy="25" r="4" fill="white"/>
+                <circle cx="25" cy="25" r="2" fill="#2C3E50"/>
+                <circle cx="37" cy="25" r="2" fill="#2C3E50"/>
+                <path d="M24 35 Q30 40 36 35" stroke="#2C3E50" stroke-width="2" fill="none"/>
+                <circle cx="19" cy="32" r="3" fill="#FF6B6B" opacity="0.4"/>
+                <circle cx="41" cy="32" r="3" fill="#FF6B6B" opacity="0.4"/>
+              </svg>
+            </div>
+            <span class="character-name">Lili</span>
+            <span class="character-unlock">✓</span>
+          </div>
+
+          <div class="character-card" data-character="toto">
+            <div class="character-preview" style="background: #54A0FF;">
+              <svg viewBox="0 0 60 60" class="snake-svg">
+                <circle cx="30" cy="30" r="18" fill="#2E86DE"/>
+                <circle cx="24" cy="25" r="4" fill="white"/>
+                <circle cx="36" cy="25" r="4" fill="white"/>
+                <circle cx="25" cy="24" r="2" fill="#2C3E50"/>
+                <circle cx="37" cy="24" r="2" fill="#2C3E50"/>
+                <ellipse cx="30" cy="35" rx="4" ry="3" fill="#E74C3C"/>
+                <circle cx="19" cy="32" r="3" fill="#FF9FF3" opacity="0.4"/>
+                <circle cx="41" cy="32" r="3" fill="#FF9FF3" opacity="0.4"/>
+              </svg>
+            </div>
+            <span class="character-name">Toto</span>
+            <span class="character-unlock">🔒 DESBLOQUEA A LAS 5</span>
+          </div>
+
+          <div class="character-card" data-character="mimi">
+            <div class="character-preview" style="background: #FF6B9D;">
+              <svg viewBox="0 0 60 60" class="snake-svg">
+                <circle cx="30" cy="30" r="18" fill="#E84393"/>
+                <circle cx="24" cy="25" r="4" fill="white"/>
+                <circle cx="36" cy="25" r="4" fill="white"/>
+                <circle cx="25" cy="25" r="2" fill="#2C3E50"/>
+                <circle cx="37" cy="25" r="2" fill="#2C3E50"/>
+                <path d="M24 34 Q30 39 36 34" stroke="#2C3E50" stroke-width="1.5" fill="none"/>
+                <circle cx="19" cy="32" r="3" fill="#FD79A8" opacity="0.4"/>
+                <circle cx="41" cy="32" r="3" fill="#FD79A8" opacity="0.4"/>
+              </svg>
+            </div>
+            <span class="character-name">Mimi</span>
+            <span class="character-unlock">🔒 DESBLOQUEA A LAS 15</span>
+          </div>
+
+          <div class="character-card" data-character="sol">
+            <div class="character-preview" style="background: #FECA57;">
+              <svg viewBox="0 0 60 60" class="snake-svg">
+                <circle cx="30" cy="30" r="18" fill="#F9CA24"/>
+                <circle cx="24" cy="25" r="4" fill="white"/>
+                <circle cx="36" cy="25" r="4" fill="white"/>
+                <circle cx="25" cy="25" r="2" fill="#2C3E50"/>
+                <circle cx="37" cy="25" r="2" fill="#2C3E50"/>
+                <path d="M22 33 Q26 38 30 33 Q34 38 38 33" stroke="#2C3E50" stroke-width="1.5" fill="none"/>
+                <circle cx="19" cy="32" r="3" fill="#FF6B6B" opacity="0.4"/>
+                <circle cx="41" cy="32" r="3" fill="#FF6B6B" opacity="0.4"/>
+              </svg>
+            </div>
+            <span class="character-name">Sol</span>
+            <span class="character-unlock">🔒 DESBLOQUEA A LAS 30</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dificultad -->
+      <div class="menu-section">
+        <label class="menu-label">Dificultad:</label>
+        <div class="difficulty-buttons">
+          <button class="difficulty-btn selected" data-difficulty="1">
+            <span class="diff-icon">🌟</span>
+            <span class="diff-name">Fácil</span>
+            <span class="diff-desc">2 sílabas · Sin castigo</span>
+          </button>
+          <button class="difficulty-btn" data-difficulty="2">
+            <span class="diff-icon">⭐</span>
+            <span class="diff-name">Medio</span>
+            <span class="diff-desc">2-3 sílabas · Obstáculos</span>
+          </button>
+          <button class="difficulty-btn" data-difficulty="3">
+            <span class="diff-icon">🔥</span>
+            <span class="diff-name">Difícil</span>
+            <span class="diff-desc">3-5 sílabas · Vidas</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Opciones -->
+      <div class="menu-section options-section">
+        <label class="option-item">
+          <input type="checkbox" id="show-word-check" checked>
+          <span class="checkmark"></span>
+          <span>Mostrar palabra</span>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="sound-check" checked>
+          <span class="checkmark"></span>
+          <span>Activar sonidos</span>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="music-check" checked>
+          <span class="checkmark"></span>
+          <span>Música de fondo</span>
+        </label>
+        <label class="option-item">
+          <input type="checkbox" id="relaxed-check" checked>
+          <span class="checkmark"></span>
+          <span>Modo relajado</span>
+        </label>
+      </div>
+
+      <!-- Botón Comenzar -->
+      <button id="start-btn" class="start-button">
+        <span>¡Comenzar!</span>
+        <span class="start-icon">▶</span>
+      </button>
+
+      <!-- Instrucciones rápidas -->
+      <div class="quick-help">
+        <p>🎮 Usa las flechas o WASD para mover la viborita</p>
+        <p>📱 En móvil: desliza o usa los botones</p>
+        <p>📝 ¡Come las sílabas en orden para formar palabras!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PANTALLA DE JUEGO ============ -->
+  <div id="game-screen" class="screen hidden">
+    <!-- HUD Superior -->
+    <div id="game-hud" class="game-hud">
+      <div class="hud-left">
+        <span id="hud-name" class="hud-name">Jugador/a</span>
+        <span id="lives-display" class="lives-display">∞</span>
+      </div>
+      <div class="hud-center">
+        <div class="hud-score-group">
+          <span class="hud-label">Puntos</span>
+          <span id="hud-score" class="hud-score">0</span>
+        </div>
+        <div class="hud-score-group">
+          <span class="hud-label">Palabras</span>
+          <span id="hud-words" class="hud-words">0</span>
+        </div>
+        <span id="combo-display" class="combo-display"></span>
+      </div>
+      <div class="hud-right">
+        <button id="pause-btn" class="pause-btn" aria-label="Pausar">⏸</button>
+      </div>
+    </div>
+
+    <!-- Panel de Palabra -->
+    <div id="word-panel" class="word-panel">
+      <!-- Se llena dinámicamente -->
+    </div>
+
+    <!-- Área de Juego -->
+    <div id="canvas-container" class="canvas-container">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <!-- Controles Móviles -->
+    <div id="mobile-controls" class="mobile-controls hidden">
+      <div class="dpad">
+        <button id="btn-up" class="dpad-btn dpad-up" aria-label="Arriba">▲</button>
+        <button id="btn-left" class="dpad-btn dpad-left" aria-label="Izquierda">◄</button>
+        <button id="btn-right" class="dpad-btn dpad-right" aria-label="Derecha">►</button>
+        <button id="btn-down" class="dpad-btn dpad-down" aria-label="Abajo">▼</button>
+      </div>
+    </div>
+
+    <!-- Overlay de Pausa -->
+    <div id="pause-overlay" class="overlay hidden">
+      <div class="overlay-content">
+        <h2>⏸ Pausa</h2>
+        <button id="resume-btn" class="overlay-btn primary">▶ Continuar</button>
+        <button id="quit-btn" class="overlay-btn secondary">🏠 Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PANTALLA FINAL ============ -->
+  <div id="gameover-screen" class="screen hidden">
+    <div class="gameover-container">
+      <div class="gameover-header">
+        <div class="gameover-icon">🌟</div>
+        <h2 class="gameover-title">¡Fin del juego!</h2>
+      </div>
+
+      <div class="gameover-stats">
+        <div class="stat-card">
+          <span class="stat-icon">⭐</span>
+          <span class="stat-value" id="final-score">0</span>
+          <span class="stat-label">Puntos</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-icon">📚</span>
+          <span class="stat-value" id="final-words">0</span>
+          <span class="stat-label">Palabras</span>
+        </div>
+        <div class="stat-card record-card">
+          <span class="stat-icon">🏆</span>
+          <span class="stat-value" id="final-record">0</span>
+          <span class="stat-label">Récord</span>
+        </div>
+      </div>
+
+      <div id="new-record-badge" class="new-record-badge hidden">
+        ¡Nuevo récord! 🎉
+      </div>
+
+      <p id="final-message" class="final-message"></p>
+
+      <div class="gameover-buttons">
+        <button id="play-again-btn" class="start-button">
+          <span>¡Jugar otra vez!</span>
+          <span class="start-icon">🔄</span>
+        </button>
+        <button id="menu-btn" class="menu-btn">
+          🏠 Volver al menú
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <noscript>
+    <div style="text-align:center;padding:40px;font-family:sans-serif;">
+      <h2>Este juego requiere JavaScript</h2>
+      <p>Por favor, habilita JavaScript en tu navegador para jugar.</p>
+    </div>
+  </noscript>
+
+  <script src="./assets/js/game.js" defer></script>
+</body>
+</html>
+
