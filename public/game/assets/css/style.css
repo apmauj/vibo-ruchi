@@ -12,6 +12,68 @@
   padding: 0;
 }
 
+/* Floating QR button and modal */
+.qr-float-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, var(--verde), var(--azul));
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  z-index: 1200;
+  cursor: pointer;
+}
+
+.qr-modal-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1210;
+}
+
+.qr-modal {
+  background: white;
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+}
+
+.qr-title {
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+#qrcode { margin: 8px auto; }
+
+.qr-close-btn {
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, var(--verde), var(--azul));
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .qr-float-btn { width: 46px; height: 46px; font-size: 1.05rem; bottom: 16px; right: 16px; }
+  .qr-modal { padding: 14px; }
+}
+
 :root {
   --celeste: #A8D8EA;
   --celeste-dark: #87CEEB;

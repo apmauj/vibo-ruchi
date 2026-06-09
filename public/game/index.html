@@ -270,6 +270,40 @@
   </noscript>
 
   <script src="./assets/js/game.js" defer></script>
+  <!-- Floating QR share button -->
+  <div class="qr-float-btn" id="qrFloatBtn" title="Compartir juego">📱</div>
+  <div class="qr-modal-bg" id="qrModalBg" style="display:none;">
+    <div class="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+      <div id="qrTitle" class="qr-title">Escanea para abrir el juego</div>
+      <div id="qrcode"></div>
+      <button class="qr-close-btn" id="closeQrBtn">Cerrar</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js" defer></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', function () {
+      const qrFloatBtn = document.getElementById('qrFloatBtn');
+      const qrModalBg = document.getElementById('qrModalBg');
+      const closeQrBtn = document.getElementById('closeQrBtn');
+
+      qrFloatBtn.addEventListener('click', () => {
+        qrModalBg.style.display = 'flex';
+        const qrcodeDiv = document.getElementById('qrcode');
+        if (!qrcodeDiv.hasChildNodes()) {
+          const canvas = document.createElement('canvas');
+          qrcodeDiv.appendChild(canvas);
+          const url = window.location.href;
+          QRCode.toCanvas(canvas, url, { width: 220 }, function (error) {
+            if (error) console.error(error);
+          });
+        }
+      });
+
+      closeQrBtn.addEventListener('click', () => { qrModalBg.style.display = 'none'; });
+      qrModalBg.addEventListener('click', (e) => { if (e.target === qrModalBg) { qrModalBg.style.display = 'none'; } });
+    });
+  </script>
 </body>
 </html>
 
