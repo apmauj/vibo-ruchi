@@ -6,7 +6,7 @@
     "postinstall": "prisma generate",
     "dev": "node scripts/tee-run.mjs dev.log next dev -p 3000",
     "build": "prisma generate && next build && node scripts/copy-standalone-assets.mjs",
-    "build:pages": "node scripts/build-pages.mjs",
+    "build:pages": "prisma generate && node scripts/build-pages.mjs",
     "start": "node scripts/tee-run.mjs server.log node .next/standalone/server.js",
     "lint": "eslint .",
     "test:player-data": "node --test tests/player-data-store.test.mjs tests/game-rules.test.mjs",
