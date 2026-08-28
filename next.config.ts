@@ -1,22 +1,22 @@
 import type { NextConfig } from "next";
 
-const basePath = "/vibo-ruchi";
+const isGitHubPages = process.env.GITHUB_PAGES === "true";
+const repositoryName = process.env.GITHUB_REPOSITORY?.split("/")[1] || "vibo-ruchi";
+const basePath = isGitHubPages ? `/${repositoryName}` : "";
 
-const nextConfig: NextConfig = {
-  output: "export",
-  basePath,
-  assetPrefix: basePath,
-  trailingSlash: true,
-  images: {
-    unoptimized: true,
-  },
-  env: {
-    NEXT_PUBLIC_BASE_PATH: basePath,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  reactStrictMode: false,
-};
+const nextConfig: NextConfig = isGitHubPages
+  ? {
+      output: "export",
+      basePath,
+      assetPrefix: basePath,
+      trailingSlash: true,
+      images: { unoptimized: true },
+      env: { NEXT_PUBLIC_BASE_PATH: basePath },
+      reactStrictMode: false,
+    }
+  : {
+      output: "standalone",
+      reactStrictMode: false,
+    };
 
 export default nextConfig;
