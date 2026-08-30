@@ -56,7 +56,7 @@ export class UI3D {
 
           <div class="field">
             <label>JUGADOR</label>
-            <div class="player-picker">
+            <div class="player-picker" id="player-picker">
               <select id="player-select" aria-label="Jugador activo"></select>
               <button class="progress-btn" id="btn-progress" type="button" aria-label="Abrir progreso, logros y ranking" title="Progreso y ranking">🏆</button>
               <button class="add-player-btn" id="btn-add-player" type="button" aria-label="Agregar jugador">+</button>
@@ -149,6 +149,7 @@ export class UI3D {
       menuScreen: this.root.querySelector('#menu-screen'),
       gameoverScreen: this.root.querySelector('#gameover-screen'),
       pauseScreen: this.root.querySelector('#pause-screen'),
+      playerPicker: this.root.querySelector('#player-picker'),
       playerSelect: this.root.querySelector('#player-select'),
       btnProgress: this.root.querySelector('#btn-progress'),
       btnAddPlayer: this.root.querySelector('#btn-add-player'),
@@ -270,7 +271,9 @@ export class UI3D {
       option.selected = player.id === this._playerSnapshot.activePlayerId;
       this.el.playerSelect.appendChild(option);
     }
+    const hasPlayers = this._playerSnapshot.players.length > 0;
     const hasPlayer = Boolean(this._activePlayer());
+    this.el.playerPicker.hidden = !hasPlayers;
     this.el.playerSelect.disabled = !hasPlayer;
     this.el.btnProgress.disabled = !hasPlayer;
     this.el.btnStart.disabled = !hasPlayer;

@@ -464,3 +464,23 @@ Stage Summary:
 2. **P3 — Soporte de timer GPU:** EXT_disjoint_timer_query_webgl2 no está disponible en todos los navegadores o drivers. El fallback por FPS está cubierto, pero ofrece menor precisión.
 3. **P3 — Ajuste estadístico:** los umbrales tienen histéresis y pruebas deterministas, pero conviene revisarlos únicamente si las mediciones de varios equipos reales muestran degradaciones visuales demasiado frecuentes.
 4. **Propuesto para revisión (no implementado):** selector manual de calidad, modo batería y captura GPU nativa de macOS continúan fuera de alcance hasta aprobación explícita.
+
+---
+
+## Ajuste UX — Alta inicial de jugador (2026-08-30)
+
+### Estado actual del proyecto / evaluación
+
+- La primera visita mostraba simultáneamente un selector de jugador vacío y deshabilitado junto al formulario obligatorio de alta. Aunque era funcional, ambas filas competían visualmente y sugerían que el selector vacío requería una acción.
+
+### Objetivos actuales, modificaciones completadas y resultados de verificación
+
+- La fila de selector, progreso y botón + queda oculta únicamente cuando todavía no existe ningún perfil.
+- Sin jugadores se muestra solamente el formulario de creación. Después del primer alta, el selector aparece con el perfil activo y el formulario se cierra.
+- Con perfiles existentes, el botón + conserva el comportamiento anterior: mantiene visible la fila del jugador actual y abre debajo la segunda fila de creación.
+- QA Chromium validó los tres estados mediante DOM y árbol accesible: 0 perfiles = selector display none/formulario grid; 1 perfil = selector grid/formulario oculto; botón + = ambas filas grid.
+- La persistencia, selección, ranking y progreso no cambiaron. Lint, TypeScript y 16/16 tests pasan.
+
+### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
+
+- No quedan problemas funcionales conocidos asociados a este ajuste.
