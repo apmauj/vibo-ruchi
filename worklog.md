@@ -484,3 +484,28 @@ Stage Summary:
 ### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
 
 - No quedan problemas funcionales conocidos asociados a este ajuste.
+
+---
+
+## Recuperación — Compartir juego mediante QR (2026-08-30)
+
+### Estado actual del proyecto / evaluación
+
+- El historial confirmó que el commit 344e7d1 había añadido un botón flotante y un modal QR en la versión 2D. La migración 3D eliminó esa integración.
+- La implementación histórica dependía de jsDelivr, utilizaba la URL interna de la página y no aislaba el fondo ni gestionaba foco/Escape.
+
+### Objetivos actuales, modificaciones completadas y resultados de verificación
+
+- Añadido un badge QR interactivo al lado izquierdo del logo, equilibrado visualmente con el badge 3D ubicado a la derecha. Usa un SVG propio y nombre accesible.
+- Nuevo modal con el mensaje “¡Compartí el juego con tus amigos!”, explicación breve, QR de 240×240 y URL visible.
+- El enlace se obtiene desde la página contenedora. En GitHub Pages compartirá la raíz pública del juego y no la ruta interna game/index.html del iframe.
+- El generador qrcode 1.5.4 se empaqueta como módulo ESM local junto con su licencia MIT; el QR no depende de CDN ni de una API externa.
+- El modal bloquea el fondo mediante inert, lleva el foco al botón cerrar, atrapa Tab, cierra con Escape o clic en el fondo y restaura el foco al badge.
+- QA Chromium escritorio: canvas 240×240, 22.482 píxeles oscuros y 35.118 claros, URL exacta de la página contenedora, foco correcto y fondo completamente inerte.
+- QA móvil 390×844: diálogo de 354×520 px íntegramente dentro del viewport; badge QR clicable y visualmente balanceado con 3D.
+- Smoke del export Pages bajo /vibo-ruchi/: el iframe cargó desde /vibo-ruchi/game/index.html, mientras el QR codificó correctamente la URL contenedora /vibo-ruchi/.
+- Lint, TypeScript, 16/16 tests y git diff --check pasan.
+
+### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
+
+- **P3 — Escaneo en dispositivos físicos:** el QR cumple estructura y contraste y fue renderizado correctamente, pero conviene confirmar una lectura con cámara iOS/Android después del próximo despliegue público.

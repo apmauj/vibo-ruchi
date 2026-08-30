@@ -12,6 +12,7 @@ El juego fue migrado por completo desde la implementación 2D original. La versi
 - Controles relativos por teclado, swipe y botones táctiles.
 - Audio procedural con Web Audio API, música ambiental y preferencias persistidas en `localStorage`.
 - Menú, HUD, pausa y pantalla de resultados adaptables a escritorio y móvil.
+- Perfiles locales, logros, ranking top 15 y acceso QR para compartir la URL publicada.
 
 No quedan dependencias funcionales de la antigua vista 2D. `worklog.md` contiene el historial técnico y las verificaciones más recientes.
 
@@ -74,6 +75,7 @@ GitHub Pages solo sirve contenido estático. El juego funciona allí porque toda
 - `public/game/assets/js/snake3d.js`: personaje, cuerpo, shaders y estela.
 - `public/game/assets/js/items3d.js`: sílabas, bonus y obstáculos.
 - `public/game/assets/js/ui3d.js`: menú, HUD y pantallas.
+- `public/game/assets/js/share-modal.js`: modal accesible y generación local del QR.
 - `worklog.md`: estado técnico, verificaciones y riesgos conocidos.
 
 ## Contribuir y licencia

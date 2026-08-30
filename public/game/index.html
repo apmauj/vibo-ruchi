@@ -88,6 +88,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .logo-3d { position: absolute; top: -4px; right: 4px; background: linear-gradient(135deg, var(--pink), var(--violet));
   color: white; font-weight: 900; font-size: 18px; padding: 4px 10px; border-radius: 10px; transform: rotate(8deg);
   box-shadow: 0 4px 18px rgba(255,107,157,0.5); letter-spacing: 2px; }
+.logo-qr { position: absolute; z-index: 2; top: -4px; left: 4px; display: flex; align-items: center; gap: 5px; padding: 5px 8px;
+  border: 1px solid rgba(124,247,236,0.45); border-radius: 10px; background: linear-gradient(135deg, rgba(124,247,236,0.2), rgba(84,160,255,0.24));
+  color: var(--accent); font: 900 12px inherit; letter-spacing: 1px; cursor: pointer; transform: rotate(-8deg);
+  box-shadow: 0 4px 18px rgba(124,247,236,0.24); transition: transform 0.16s, background 0.16s, box-shadow 0.16s; }
+.logo-qr svg { width: 16px; height: 16px; fill: currentColor; }
+.logo-qr:hover { transform: rotate(-4deg) translateY(-1px); background: rgba(124,247,236,0.25); box-shadow: 0 6px 22px rgba(124,247,236,0.38); }
+.logo-qr:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .subtitle { text-align: center; color: #d8d2f6; margin: 2px 0 12px; font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
 .field { margin-bottom: 10px; }
 .field > label { display: block; font-size: 10px; letter-spacing: 1.8px; color: var(--muted); font-weight: 800; margin-bottom: 6px; }
@@ -234,6 +241,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .progress-tabs button { padding: 10px 6px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #bbb3da;
   font: 800 11px inherit; letter-spacing: 0.5px; cursor: pointer; }
 .progress-tabs button.selected { color: var(--accent); border-bottom-color: var(--accent); }
+.share-screen { z-index: 40; background: rgba(5,3,15,0.76); backdrop-filter: blur(11px); -webkit-backdrop-filter: blur(11px); }
+.share-modal { max-width: 390px; padding: 0; overflow: hidden; text-align: center; animation-duration: 0.28s; }
+.share-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 20px 12px; text-align: left; }
+.share-kicker { display: block; color: var(--accent); font-size: 9px; font-weight: 900; letter-spacing: 1.8px; }
+.share-modal-header h2 { max-width: 290px; margin-top: 3px; font-family: 'Baloo 2', sans-serif; font-size: 25px; line-height: 1.05; }
+.share-content { display: flex; flex-direction: column; align-items: center; gap: 11px; padding: 4px 22px 22px; }
+.share-content > p:first-child { max-width: 310px; color: #d8d2f6; font-size: 12px; line-height: 1.45; }
+.share-qr-frame { padding: 12px; border-radius: 18px; background: white; box-shadow: 0 0 35px rgba(124,247,236,0.28); }
+.share-qr-frame canvas { display: block; width: min(240px, 66vw); height: auto; image-rendering: pixelated; }
+.share-url { max-width: 100%; padding: 7px 10px; border: 1px solid rgba(124,247,236,0.18); border-radius: 9px;
+  background: rgba(0,0,0,0.28); color: #cfc8ec; font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
+.share-error { color: #ffb3bd; font-size: 11px; font-weight: 800; }
 .progress-content { min-height: 250px; max-height: 58vh; padding: 18px 20px 20px; overflow-y: auto; }
 .progress-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .progress-stat-card { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 12px 10px; border: 1px solid rgba(124,247,236,0.16);

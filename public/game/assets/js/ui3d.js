@@ -4,6 +4,7 @@ import { audio } from './audio3d.js';
 import { CHARACTERS, DIFFICULTIES, ALL_WORDS } from './words.js';
 import { DEFAULT_GAME_OPTIONS, SPEED_LIMITS_MS, normalizeGameOptions } from './game-rules.js';
 import { ProgressModal } from './progress-modal.js';
+import { ShareModal } from './share-modal.js';
 
 export class UI3D {
   constructor(root, game) {
@@ -18,6 +19,7 @@ export class UI3D {
     this._wordCache = { word: null, syllableIndex: -1, showWord: null };
     this._buildDom(); this._loadPrefs();
     this.progressModal = new ProgressModal(this.root, this.game.playerData);
+    this.shareModal = new ShareModal(this.root);
     this._renderCharGrid(); this._renderDiffGrid(); this._bind();
     this.showMenu();
   }
@@ -48,6 +50,10 @@ export class UI3D {
       <div class="screen menu-screen" id="menu-screen">
         <div class="menu-card">
           <div class="logo">
+            <button class="logo-qr" id="btn-share" type="button" aria-label="Compartir juego con código QR" title="Compartir juego">
+              <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M1 1h6v6H1zM11 1h6v6h-6zM1 11h6v6H1zM3 3v2h2V3zm10 0v2h2V3zM3 13v2h2v-2zm8-2h2v2h-2zm4 0h2v4h-2zm-4 4h4v2h-4z"/></svg>
+              <span>QR</span>
+            </button>
             <div class="logo-snake">🐍</div>
             <h1>SNAKE<br><span class="accent">DE SÍLABAS</span></h1>
             <div class="logo-3d">3D</div>
@@ -149,6 +155,7 @@ export class UI3D {
       menuScreen: this.root.querySelector('#menu-screen'),
       gameoverScreen: this.root.querySelector('#gameover-screen'),
       pauseScreen: this.root.querySelector('#pause-screen'),
+      btnShare: this.root.querySelector('#btn-share'),
       playerPicker: this.root.querySelector('#player-picker'),
       playerSelect: this.root.querySelector('#player-select'),
       btnProgress: this.root.querySelector('#btn-progress'),
@@ -206,6 +213,7 @@ export class UI3D {
   }
 
   _bind() {
+    this.el.btnShare.onclick = () => { audio.ensure(); audio.click(); void this.shareModal.open(); };
     this.el.playerSelect.onchange = async (e) => {
       await this.game.playerData.selectPlayer(e.target.value);
       await this._refreshPlayerData();
