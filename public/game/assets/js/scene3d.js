@@ -6,6 +6,12 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CONFIG } from './config.js';
 import { CameraRig } from './camera3d.js';
+import {
+  isSoftwareRendererName,
+  percentile,
+  pixelRatioForQuality,
+  qualityLevelForGpuTime,
+} from './render-performance.js';
 
 export function gridToWorld(gx, gy, target = new THREE.Vector3()) {
   const g = CONFIG.grid;
@@ -22,7 +28,9 @@ export class Scene3D {
     this.canvas = canvas; this.elapsed = 0; this._shake = 0; this._shakeVec = new THREE.Vector3();
     this.reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false;
     this._qualityLevel = 0; this._qualityCooldown = 2; this._fpsAccum = 0; this._fpsFrames = 0;
-    this._initRenderer(); this._initScene(); this._initComposer();
+    this.performanceInfo = { rendererName: '', softwareRenderer: false, gpuTimerSupported: false, gpuP50Ms: null, gpuP90Ms: null, qualityLevel: 0, pixelRatio: 1 };
+    this._initRenderer(); this._initScene(); this._applySoftwareVisualFallback(); this._initComposer();
+    this._applyQualityLevel(this.softwareRenderer ? 1 : 0);
     this.cameraRig = new CameraRig(this.camera);
   }
   _initRenderer() {
@@ -30,6 +38,18 @@ export class Scene3D {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 0.95;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const gl = this.renderer.getContext();
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    const rendererName = debugInfo
+      ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)
+      : gl.getParameter(gl.RENDERER);
+    this.rendererName = String(rendererName || 'Unknown WebGL renderer');
+    this.softwareRenderer = isSoftwareRendererName(this.rendererName);
+    this.postprocessingEnabled = !this.softwareRenderer;
+    this._environmentContrast = this.softwareRenderer ? 1.18 : 1;
+    this.performanceInfo.rendererName = this.rendererName;
+    this.performanceInfo.softwareRenderer = this.softwareRenderer;
+    this._initGpuTimer(gl);
   }
   _initScene() {
     const { env } = CONFIG;
@@ -102,7 +122,7 @@ export class Scene3D {
       obj.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
     }
     this.surfaceMesh = null; this.gridLines = null; this.valleyHalo = null; this.rails = null;
-    this._addCurvedSurface(); this._addNeonRails();
+    this._addCurvedSurface(); this._addNeonRails(); this._applySoftwareVisualFallback();
   }
   _addStarfield() {
     const { starCount } = CONFIG.env; const geo = new THREE.BufferGeometry();
@@ -127,7 +147,67 @@ export class Scene3D {
     const size = new THREE.Vector2(); this.renderer.getSize(size);
     this.composer = new EffectComposer(this.renderer); this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloomPass = new UnrealBloomPass(new THREE.Vector2(size.x || 1, size.y || 1), CONFIG.bloom.strength, CONFIG.bloom.radius, CONFIG.bloom.threshold);
+    this.bloomPass.enabled = this.postprocessingEnabled;
     this.composer.addPass(this.bloomPass); this.composer.addPass(new OutputPass());
+  }
+  _initGpuTimer(gl) {
+    const extension = gl.createQuery && gl.beginQuery ? gl.getExtension('EXT_disjoint_timer_query_webgl2') : null;
+    if (!extension) { this._gpuTimer = null; return; }
+    this._gpuTimer = {
+      gl, extension, active: null, pending: null,
+      samples: new Float32Array(60), sampleCount: 0, lastQualityChangeMs: 0,
+    };
+    this.performanceInfo.gpuTimerSupported = true;
+  }
+  _beginGpuTimer() {
+    const timer = this._gpuTimer;
+    if (!timer) return;
+    if (timer.pending) {
+      const available = timer.gl.getQueryParameter(timer.pending, timer.gl.QUERY_RESULT_AVAILABLE);
+      const disjoint = timer.gl.getParameter(timer.extension.GPU_DISJOINT_EXT);
+      if (available) {
+        if (!disjoint) this._recordGpuTime(timer.gl.getQueryParameter(timer.pending, timer.gl.QUERY_RESULT) / 1e6);
+        timer.gl.deleteQuery(timer.pending); timer.pending = null;
+      }
+    }
+    if (timer.pending || timer.active) return;
+    timer.active = timer.gl.createQuery();
+    timer.gl.beginQuery(timer.extension.TIME_ELAPSED_EXT, timer.active);
+  }
+  _endGpuTimer() {
+    const timer = this._gpuTimer;
+    if (!timer?.active) return;
+    timer.gl.endQuery(timer.extension.TIME_ELAPSED_EXT);
+    timer.pending = timer.active; timer.active = null;
+  }
+  _recordGpuTime(milliseconds) {
+    const timer = this._gpuTimer;
+    if (!timer || !Number.isFinite(milliseconds) || milliseconds <= 0) return;
+    timer.samples[timer.sampleCount++] = milliseconds;
+    if (timer.sampleCount < timer.samples.length) return;
+    const sample = timer.samples.subarray(0, timer.sampleCount);
+    const p50 = percentile(sample, 0.5), p90 = percentile(sample, 0.9);
+    this.performanceInfo.gpuP50Ms = Number(p50.toFixed(2));
+    this.performanceInfo.gpuP90Ms = Number(p90.toFixed(2));
+    const nowMs = performance.now();
+    if (nowMs - timer.lastQualityChangeMs >= 5000) {
+      const minimumLevel = this.softwareRenderer ? 1 : 0;
+      const nextLevel = qualityLevelForGpuTime(p90, this._qualityLevel, minimumLevel);
+      if (nextLevel !== this._qualityLevel) {
+        timer.lastQualityChangeMs = nowMs;
+        this._applyQualityLevel(nextLevel);
+      }
+    }
+    timer.sampleCount = 0;
+  }
+  _applySoftwareVisualFallback() {
+    if (!this.softwareRenderer) return;
+    this.renderer.toneMappingExposure = 1.08;
+    if (this.surfaceMesh) this.surfaceMesh.material.emissiveIntensity = 1.35;
+    if (this.valleyHalo) this.valleyHalo.material.opacity = 0.22;
+    const railMaterials = new Set();
+    this.rails?.traverse(obj => { if (obj.material) railMaterials.add(obj.material); });
+    for (const material of railMaterials) material.opacity = material.blending === THREE.AdditiveBlending ? 0.38 : 0.95;
   }
   _radialTexture(colorHex, alpha = 1) {
     const c = document.createElement('canvas'); c.width = c.height = 128; const ctx = c.getContext('2d');
@@ -138,6 +218,12 @@ export class Scene3D {
   get glowTexture() { if (!this._glowTex) this._glowTex = this._radialTexture(0xffffff, 0.9); return this._glowTex; }
   resize(w, h) { if (w < 2 || h < 2) return; this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.renderer.setSize(w, h, false); this.composer.setSize(w, h); }
   addShake(a) { if (!this.reducedMotion) this._shake = Math.min(this._shake + a, 1.4); }
+  resetPerformanceSampling(nowMs = performance.now()) {
+    this._fpsLastMs = nowMs;
+    this._fpsAccum = 0;
+    this._fpsFrames = 0;
+    if (this._gpuTimer) this._gpuTimer.sampleCount = 0;
+  }
   update(dt, gameState) {
     this.elapsed += dt; const t = this.elapsed;
     const nowMs = performance.now();
@@ -146,24 +232,41 @@ export class Scene3D {
     if (this._fpsAccum >= 1) { const fps = this._fpsFrames / this._fpsAccum; this._fpsFrames = 0; this._fpsAccum = 0; this._dynamicQuality(fps); }
     const motionScale = this.reducedMotion ? 0.2 : 1;
     if (this.stars) { this.stars.material.uniforms.uTime.value = t * motionScale; this.stars.rotation.y += dt * 0.004 * motionScale; }
-    if (this.gridLines) this.gridLines.material.opacity = 0.30 + Math.sin(t * 2.0 * motionScale) * 0.06 * motionScale;
-    if (this.valleyGlow) this.valleyGlow.intensity = 1.0 + Math.sin(t * 1.4 * motionScale) * 0.18 * motionScale;
+    if (this.gridLines) this.gridLines.material.opacity = Math.min(0.48, (0.30 + Math.sin(t * 2.0 * motionScale) * 0.06 * motionScale) * this._environmentContrast);
+    if (this.valleyGlow) this.valleyGlow.intensity = (1.0 + Math.sin(t * 1.4 * motionScale) * 0.18 * motionScale) * this._environmentContrast;
     this.cameraRig.update(dt, gameState, t);
     if (this._shake > 0.001) { this._shake *= Math.exp(-CONFIG.camera.shakeDecay * dt); const s = this._shake;
       this._shakeVec.set((Math.random()-0.5)*s*0.55, (Math.random()-0.5)*s*0.4, (Math.random()-0.5)*s*0.55); this.camera.position.add(this._shakeVec); }
   }
-  render() { this.composer.render(); }
+  render() {
+    this._beginGpuTimer();
+    try {
+      if (this.postprocessingEnabled) this.composer.render();
+      else this.renderer.render(this.scene, this.camera);
+    } finally {
+      this._endGpuTimer();
+    }
+  }
+  _applyQualityLevel(level) {
+    const minimumLevel = this.softwareRenderer ? 1 : 0;
+    this._qualityLevel = Math.max(minimumLevel, Math.min(2, level));
+    const pixelRatio = pixelRatioForQuality(window.devicePixelRatio, this._qualityLevel, CONFIG.maxPixelRatio);
+    this.renderer.setPixelRatio(pixelRatio);
+    this.composer.setPixelRatio(pixelRatio);
+    this.bloomPass.enabled = this.postprocessingEnabled;
+    this.bloomPass.strength = this.postprocessingEnabled
+      ? CONFIG.bloom.strength * (this._qualityLevel === 0 ? 1 : this._qualityLevel === 1 ? 0.6 : 0.35)
+      : 0;
+    this.performanceInfo.qualityLevel = this._qualityLevel;
+    this.performanceInfo.pixelRatio = pixelRatio;
+    this.resize(this.canvas.clientWidth || 1280, this.canvas.clientHeight || 445);
+  }
   _dynamicQuality(fps) {
     if (this._qualityCooldown > 0) { this._qualityCooldown--; return; }
-    const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.maxPixelRatio);
     if (fps < 24 && this._qualityLevel < 2) { this._qualityLevel++; this._qualityCooldown = 3;
-      if (this._qualityLevel === 1) { this.renderer.setPixelRatio(Math.min(dpr, 1)); this.bloomPass.strength = CONFIG.bloom.strength * 0.6; }
-      else { this.renderer.setPixelRatio(0.85); this.bloomPass.strength = CONFIG.bloom.strength * 0.35; }
-      this.resize(this.canvas.clientWidth || 1280, this.canvas.clientHeight || 445);
-    } else if (fps > 52 && this._qualityLevel > 0) { this._qualityLevel--; this._qualityCooldown = 5;
-      if (this._qualityLevel === 0) { this.renderer.setPixelRatio(dpr); this.bloomPass.strength = CONFIG.bloom.strength; }
-      else if (this._qualityLevel === 1) { this.renderer.setPixelRatio(Math.min(dpr, 1)); this.bloomPass.strength = CONFIG.bloom.strength * 0.6; }
-      this.resize(this.canvas.clientWidth || 1280, this.canvas.clientHeight || 445);
+      this._applyQualityLevel(this._qualityLevel);
+    } else if (!this._gpuTimer && fps > 52 && this._qualityLevel > (this.softwareRenderer ? 1 : 0)) { this._qualityLevel--; this._qualityCooldown = 5;
+      this._applyQualityLevel(this._qualityLevel);
     }
   }
 }

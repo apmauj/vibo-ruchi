@@ -19,6 +19,7 @@ export class Snake3D {
     this.group = new THREE.Group(); scene.add(this.group);
     this._palette = CONFIG.characters.lili; this._elapsed = 0; this._shake = 0; this._grow = 0; this._lastGrow = 0; this._rippleT = 99; this._boost = 0; this._celebrate = 0; this._prevHeading = 0; this._bank = 0;
     this._vTmp = new THREE.Vector3(); this._m4 = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._qRoll = new THREE.Quaternion(); this._fwd = new THREE.Vector3(); this._vS = new THREE.Vector3(); this._vU = new THREE.Vector3();
+    this._frameState = { el: 0, growPulse: 0, boost: 0, celebrate: 0, t: 0, prev: null, body: null, ripplePos: -1, rippleAmp: 0 };
     this._segPts = []; this.maxCells = S.maxTubeCells;
     for (let i = 0; i < this.maxCells; i++) this._segPts.push(new THREE.Vector3());
     this._buildMaterials(); this._buildHead(); this._buildTube(); this._buildTrail(); this._buildHeadLight();
@@ -136,7 +137,9 @@ export class Snake3D {
       const x = (gx - G_HALF) * CELL, z = (gy - G_HALF) * CELL;
       segPts[k].set(x, surfaceYAt(x, z) + lift, z);
     }
-    this._segCount = segCount; this._updateHead(dt, snake, segPts, { el, growPulse, boost, celebrate, t, prev, body }); this._updateTube(dt, { el, growPulse, boost, celebrate, ripplePos, rippleAmp }); this._updateTrail(dt, { el, boost, growPulse, celebrate });
+    const frame = this._frameState;
+    frame.el = el; frame.growPulse = growPulse; frame.boost = boost; frame.celebrate = celebrate; frame.t = t; frame.prev = prev; frame.body = body; frame.ripplePos = ripplePos; frame.rippleAmp = rippleAmp;
+    this._segCount = segCount; this._updateHead(dt, snake, segPts, frame); this._updateTube(dt, frame); this._updateTrail(dt);
     const bu = this.bodyMat.uniforms; bu.uTime.value = el; bu.uBoost.value = boost; bu.uCelebrate.value = celebrate; bu.uGrow.value = growPulse; bu.uRipplePos.value = ripplePos; bu.uRippleAmp.value = rippleAmp; bu.uLightPos.value.copy(segPts[0]);
     const tu = this.trailMat.uniforms; tu.uTime.value = el; tu.uBoost.value = boost; tu.uGrow.value = growPulse; tu.uCelebrate.value = celebrate;
   }
@@ -150,7 +153,8 @@ export class Snake3D {
     const pop = 1 + growPulse * 0.3, breathe = 1 + Math.sin(el * S.breatheSpeed) * S.breatheAmp, stretch = 1 + boost * 0.14 + growPulse * 0.12;
     headMesh.scale.set(1.15 * pop * breathe * (1 - boost * 0.06), 0.95 * pop * breathe * (1 + growPulse * 0.18), 1.3 * stretch);
     this.face.scale.setScalar(1 + celebrate * 0.1);
-    const blink = Math.sin(el * 0.8) > 0.985 ? 0.15 : 1; this.eyes.children.forEach(e => e.scale.y = blink);
+    const blink = Math.sin(el * 0.8) > 0.985 ? 0.15 : 1;
+    for (const eye of this.eyes.children) eye.scale.y = blink;
     this.tongue.scale.y = THREE.MathUtils.lerp(this.tongue.scale.y, Math.sin(el * 1.7) > 0.88 ? 1 : 0.001, 1 - Math.exp(-18 * dt));
     this.headGlow.position.copy(headPos).addScaledVector(this._fwd, -0.35); this.headGlow.position.y -= 0.08;
     this.headGlow.material.opacity = 0.12 + Math.sin(el * 3.2) * 0.04 + growPulse * 0.2 + boost * 0.08 + celebrate * 0.1;
@@ -183,10 +187,14 @@ export class Snake3D {
     posA.needsUpdate = true; norA.needsUpdate = true; uvA.needsUpdate = true;
     this.tubeMesh.geometry.setDrawRange(0, (totalRings - 1) * S.tubeRadialSegs * 6);
   }
-  _updateTrail(dt, st) { const headPos = this._segPts[0], tp = this._trailPts;
+  _updateTrail(dt) { const headPos = this._segPts[0], tp = this._trailPts;
     let last = tp[tp.length - 1];
     if (last && last.distanceToSquared(headPos) > CELL * CELL * 9) { tp.length = 0; last = null; }
-    if (!last || last.distanceToSquared(headPos) > S.trailSpawnDist) { tp.push(headPos.clone()); if (tp.length > S.trailMaxPoints) tp.shift(); }
+    if (!last || last.distanceToSquared(headPos) > S.trailSpawnDist) {
+      if (tp.length >= S.trailMaxPoints) {
+        const recycled = tp.shift(); recycled.copy(headPos); tp.push(recycled);
+      } else tp.push(new THREE.Vector3().copy(headPos));
+    }
     for (let i = 0; i < tp.length; i++) { if (i === tp.length - 1) continue; const nxt = tp[i + 1] || headPos; tp[i].lerp(nxt, 1 - Math.exp(-2.2 * dt * (i / tp.length + 0.2))); }
     const n = tp.length, posA = this.trailMesh.geometry.attributes.position, uvA = this.trailMesh.geometry.attributes.uv;
     for (let i = 0; i < n; i++) { const p = tp[i], j = Math.max(0, i - 1), k = Math.min(n - 1, i + 1);

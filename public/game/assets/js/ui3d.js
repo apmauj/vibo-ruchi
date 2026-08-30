@@ -13,6 +13,9 @@ export class UI3D {
       ...DEFAULT_GAME_OPTIONS,
     };
     this._playerSnapshot = { activePlayerId: null, players: [], progress: {} };
+    this._frameCache = { score: null, words: null, lives: null, relaxed: null, combo: null, boost: null, star: null };
+    this._hudNameCache = null;
+    this._wordCache = { word: null, syllableIndex: -1, showWord: null };
     this._buildDom(); this._loadPrefs();
     this.progressModal = new ProgressModal(this.root, this.game.playerData);
     this._renderCharGrid(); this._renderDiffGrid(); this._bind();
@@ -391,19 +394,16 @@ export class UI3D {
   // ---------- HUD sync ----------
   syncHUD() {
     const s = this.game.state;
-    this.el.name.textContent = s.playerName;
-    this.el.score.textContent = s.score;
-    this.el.words.textContent = s.words;
-    this.el.lives.textContent = s.rules?.relaxedMode ? '∞' : ('♥'.repeat(Math.max(0, s.lives)) || '—');
-    this.el.combo.textContent = `x${s.combo}`;
-    this.el.comboChip.hidden = s.combo < 2;
-    this.el.boostChip.hidden = !s.speedBoost || s.speedBoost <= 0;
-    this.el.starChip.hidden = !s.starTimer || s.starTimer <= 0;
+    if (this._hudNameCache !== s.playerName) { this._hudNameCache = s.playerName; this.el.name.textContent = s.playerName; }
+    this._syncFastHud(s.score, s.words, s.lives, s.combo, s.speedBoost > 0, s.starTimer > 0);
     if (s.currentWord) this._renderWord();
   }
 
   _renderWord() {
     const s = this.game.state; const word = s.currentWord; if (!word) return;
+    const cache = this._wordCache;
+    if (cache.word === word && cache.syllableIndex === s.syllableIndex && cache.showWord === s.showWord) return;
+    cache.word = word; cache.syllableIndex = s.syllableIndex; cache.showWord = s.showWord;
     this.el.wordPanel.classList.toggle('hidden-word', !s.showWord);
     this.el.wordSyl.innerHTML = word.silabas.map((sy, i) => {
       const done = i < s.syllableIndex; const current = i === s.syllableIndex;
@@ -417,13 +417,20 @@ export class UI3D {
 
   onFrame({ score, words, lives, combo, boost, star }) {
     // Solo actualiza lo que cambia rápido
-    if (this.el.score.textContent !== String(score)) this.el.score.textContent = score;
-    if (this.el.words.textContent !== String(words)) this.el.words.textContent = words;
-    const lv = this.game.state.rules?.relaxedMode ? '∞' : ('♥'.repeat(Math.max(0, lives)) || '—');
-    if (this.el.lives.textContent !== lv) this.el.lives.textContent = lv;
-    this.el.combo.textContent = `x${combo}`;
-    this.el.comboChip.hidden = combo < 2;
-    this.el.boostChip.hidden = !boost;
-    this.el.starChip.hidden = !star;
+    this._syncFastHud(score, words, lives, combo, boost, star);
+  }
+
+  _syncFastHud(score, words, lives, combo, boost, star) {
+    const cache = this._frameCache;
+    if (cache.score !== score) { cache.score = score; this.el.score.textContent = score; }
+    if (cache.words !== words) { cache.words = words; this.el.words.textContent = words; }
+    const relaxed = this.game.state.rules?.relaxedMode === true;
+    if (cache.lives !== lives || cache.relaxed !== relaxed) {
+      cache.lives = lives; cache.relaxed = relaxed;
+      this.el.lives.textContent = relaxed ? '∞' : ('♥'.repeat(Math.max(0, lives)) || '—');
+    }
+    if (cache.combo !== combo) { cache.combo = combo; this.el.combo.textContent = 'x' + combo; this.el.comboChip.hidden = combo < 2; }
+    if (cache.boost !== boost) { cache.boost = boost; this.el.boostChip.hidden = !boost; }
+    if (cache.star !== star) { cache.star = star; this.el.starChip.hidden = !star; }
   }
 }

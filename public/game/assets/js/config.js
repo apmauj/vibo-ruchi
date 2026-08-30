@@ -47,7 +47,7 @@ export const CONFIG = {
     burstCorrect: 26, burstConfetti: 90, burstBonus: 18, burstError: 12, burstGameOver: 120,
   },
 
-  maxPixelRatio: 2,
+  maxPixelRatio: 1.5,
 
   characters: {
     lili: { main: 0x4ecdc4, head: 0x45b7d1, glow: 0x7cf7ec, cheek: 0xff9fc0 },

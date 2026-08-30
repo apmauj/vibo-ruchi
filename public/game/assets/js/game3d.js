@@ -13,6 +13,7 @@ import {
   SCORE_CORRECT, SCORE_BONUS, OBSTACLE_COUNT, DISTRACTOR_RATIO,
   createRulesSnapshot, wordCompletionBonus,
 } from './game-rules.js';
+import { frameIntervalForMode, frameRemainder } from './render-performance.js';
 
 const G = CONFIG.grid;
 const STARTING_LIVES = 3, MAX_LIVES = 5;
@@ -29,14 +30,20 @@ export class Game3D {
     this.items3D = new Items3D(this.scene.scene, this.scene.glowTexture);
     this.particles = new Particles3D(this.scene.scene);
     this.popups = new Popups3D(this.scene.scene);
-    this._lastTime = 0; this._running = false; this._paused = false;
+    this._lastTime = 0; this._lastFrameTime = 0; this._running = false; this._paused = false;
     this._raf = 0;
     this._nextWordTimer = null;
     this._sessionId = 0;
     this.state = this._freshState();
+    this._renderState = { snake: this.state.snake, moveT: 0, speedBoost: false, growPulse: 0 };
+    this._viewerRenderState = { snake: this.state.snake, moveT: 0, speedBoost: false, growPulse: 0 };
+    this._hudFrame = { score: 0, words: 0, lives: STARTING_LIVES, combo: 0, boost: false, star: false };
+    this._loop = this._loop.bind(this);
     this._onKey = this._onKey.bind(this); this._onResize = this._onResize.bind(this);
+    this._onVisibilityChange = this._onVisibilityChange.bind(this);
     window.addEventListener('keydown', this._onKey);
     window.addEventListener('resize', this._onResize);
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
     this._onResize();
     // Arranca en modo menú: órbita + serpiente "idle"
     this.scene.cameraRig.setMode('menu');
@@ -99,20 +106,43 @@ export class Game3D {
     this.snake3D.reset();
     audio.ensure(); audio.setEnabled(s.soundOn); audio.setMusic(s.musicOn);
     if (s.musicOn) audio.startMusic();
-    if (!this._running) { this._running = true; this._lastTime = performance.now(); this._raf = requestAnimationFrame(this._loop.bind(this)); }
+    if (!this._running) this.startLoop();
     this.ui.syncHUD();
   }
 
   // ---------- Loop principal ----------
+  startLoop() {
+    if (this._running) return;
+    this._running = true;
+    const now = performance.now();
+    this._lastTime = now;
+    this._lastFrameTime = now - frameIntervalForMode(this.state.mode);
+    this._raf = requestAnimationFrame(this._loop);
+  }
+
   _loop(now) {
     if (!this._running) return;
+    if (document.hidden) {
+      this._lastTime = now;
+      this._lastFrameTime = now;
+      this._raf = requestAnimationFrame(this._loop);
+      return;
+    }
+
+    const frameInterval = frameIntervalForMode(this.state.mode);
+    const frameElapsed = now - this._lastFrameTime;
+    if (frameElapsed < frameInterval - 0.5) {
+      this._raf = requestAnimationFrame(this._loop);
+      return;
+    }
+    this._lastFrameTime = now - frameRemainder(frameElapsed, frameInterval);
     const dt = Math.min(0.05, (now - this._lastTime) / 1000); this._lastTime = now;
     if (!this._paused && this.state.mode === 'playing') this._update(dt);
     else if (this.state.mode === 'menu' || this.state.mode === 'gameover' || this.state.mode === 'paused') {
       this.scene.update(dt, this.state.mode === 'paused' ? this._viewerState() : this.state);
     }
     this.scene.render();
-    this._raf = requestAnimationFrame(this._loop.bind(this));
+    this._raf = requestAnimationFrame(this._loop);
   }
 
   _update(dt) {
@@ -128,20 +158,25 @@ export class Game3D {
     s.moveT += dt / (s.stepDuration / speedMul);
     while (s.moveT >= 1) { s.moveT -= 1; this._stepSnake(); if (s.mode !== 'playing') return; }
     // Update 3D
-    const gameState3D = { snake: s.snake, moveT: s.moveT, speedBoost: s.speedBoost > 0, growPulse: s.growPulse };
+    const gameState3D = this._renderState;
+    gameState3D.snake = s.snake; gameState3D.moveT = s.moveT; gameState3D.speedBoost = s.speedBoost > 0; gameState3D.growPulse = s.growPulse;
     this.scene.update(dt, gameState3D);
     this.snake3D.update(dt, gameState3D, this.scene.elapsed);
     this.items3D.update(dt, this.scene.elapsed);
     this.particles.update(dt);
     this.popups.update(dt);
     // HUD: combo decae visualmente, etc
-    this.ui.onFrame({ score: s.score, words: s.words, lives: s.lives, combo: s.combo, boost: s.speedBoost > 0, star: s.starTimer > 0 });
+    const hud = this._hudFrame;
+    hud.score = s.score; hud.words = s.words; hud.lives = s.lives; hud.combo = s.combo; hud.boost = s.speedBoost > 0; hud.star = s.starTimer > 0;
+    this.ui.onFrame(hud);
   }
 
   _viewerState() {
     // Para modo pausa: congelamos el snake para que no avance
     const s = this.state;
-    return { snake: s.snake, moveT: s.moveT, speedBoost: false, growPulse: 0 };
+    const viewer = this._viewerRenderState;
+    viewer.snake = s.snake; viewer.moveT = s.moveT;
+    return viewer;
   }
 
   // ---------- Step / movimiento ----------
@@ -478,6 +513,13 @@ export class Game3D {
     this.scene.resize(w, h);
   }
 
+  _onVisibilityChange() {
+    const now = performance.now();
+    this._lastTime = now;
+    this._lastFrameTime = document.hidden ? now : now - frameIntervalForMode(this.state.mode);
+    this.scene.resetPerformanceSampling(now);
+  }
+
   // ---------- Destroy ----------
   dispose() {
     this._running = false;
@@ -485,6 +527,7 @@ export class Game3D {
     this._clearNextWordTimer();
     window.removeEventListener('keydown', this._onKey);
     window.removeEventListener('resize', this._onResize);
+    document.removeEventListener('visibilitychange', this._onVisibilityChange);
     audio.stopMusic();
   }
 }

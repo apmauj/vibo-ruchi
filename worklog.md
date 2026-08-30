@@ -405,3 +405,62 @@ Stage Summary:
 3. **P2 — Ranking local manipulable:** un usuario puede editar localStorage; se acepta para esta etapa y no afecta la experiencia casual.
 4. **P2 — Contraste sobre render 3D:** Axe no reporta violaciones, pero deja el contraste como incompleto porque no puede calcular el fondo Three.js/gradiente. Requiere revisión visual manual en hardware objetivo.
 5. **Propuesto para revisión (no implementado):** dificultad experta de 8–10 sílabas; editar/eliminar perfiles; exportar/importar respaldo local; catálogo ampliado de logros; repositorio HTTP para ranking global.
+
+---
+
+## Fase — Estabilización de rendimiento GPU/CPU en Chrome y pantallas Retina (2026-08-30)
+
+### Estado actual del proyecto / evaluación
+
+- El profiling previo reprodujo el riesgo reportado: el juego renderizaba al refresco completo del monitor incluso en menú (143–144 FPS) y, en Retina 2×, el postprocesado mantenía buffers de 2528×1138 aunque la calidad dinámica bajara solamente el DPR del renderer.
+- La carga dominante estaba en GPU/composición: bloom ejecutaba múltiples pasadas por frame. En la comparación controlada, sincronizar renderer/composer a DPR 1 redujo el consumo aproximado de un núcleo de CPU de ~65% a ~2.5% bajo SwiftShader.
+- No se reprodujo un leak sostenido de memoria: tras 100 transiciones forzadas y GC, el heap bajó de 10.7 MB a 8.9 MB; geometrías quedaron estables en 33 y los pools conservaron límites fijos. Sí quedaba presión de asignaciones por frame, empezando por crear un nuevo bind en cada requestAnimationFrame.
+
+### Objetivos actuales, modificaciones completadas y resultados de verificación
+
+- El loop tiene una única función enlazada y limita el render a 60 FPS durante juego y 30 FPS en menú, pausa y game over. Se corrigió además un borde de precisión flotante que podía emitir un frame duplicado.
+- Una pestaña oculta deja de actualizar y renderizar; al volver se reinician los relojes del juego y el muestreo de calidad para evitar saltos de simulación o una degradación falsa.
+- El DPR máximo bajó de 2 a 1.5. Los niveles adaptativos usan 1.5/1/0.75 como máximos y aplican siempre el mismo DPR al WebGLRenderer y al EffectComposer.
+- Se detectan SwiftShader, llvmpipe, WARP, Microsoft Basic Render y otros rasterizadores por software. En ellos el bloom queda deshabilitado, el pipeline renderiza directamente la escena y el nivel inicial se limita a DPR 1.
+- Se añadió render-performance.js como política pura y testeable para FPS, intervalos, DPR y detección de software; la suite pasó de 11 a 15 tests.
+- QA Chromium: menú 66 frames/2.2 s = 30.0 FPS; partida real 132 frames/2.2 s = 60.0 FPS; pestaña oculta durante 600 ms = 0 renders.
+- Simulación Retina 2×: renderer/composer coincidieron en DPR 1.5, 1 y 0.75, con buffers 1896×853, 1264×569 y 948×426. Simulación software: bloom deshabilitado, intensidad 0, 1 render directo y 0 renders del composer.
+- Smoke real: perfil local, inicio de partida, 4 segmentos, loop estable y sin errores de runtime. bun run lint, 15/15 tests, bunx tsc --noEmit, build Pages, build standalone y git diff --check pasan.
+
+### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
+
+1. **P1 — Confirmación en el Mac afectado:** el escenario fue reproducido y mitigado en Chromium/Windows, incluida Retina simulada, pero falta repetir una sesión sostenida en el Chrome/macOS original y observar CPU, temperatura y memoria desde Activity Monitor.
+2. **P2 — Presupuesto GPU por hardware:** el autoajuste usa FPS de aplicación, no timers GPU. Conviene registrar tier, resolución y percentiles de frame time en varios equipos reales antes de ajustar umbrales.
+3. **P2 — Asignaciones residuales:** siguen existiendo objetos temporales por frame en estados 3D y actualizaciones de estela/HUD. No mostraron crecimiento retenido, pero son candidatos a reducir si aparecen pausas de GC en hardware modesto.
+4. **P2 — Calidad visual del fallback:** deshabilitar bloom prioriza estabilidad en renderizadores por software. Requiere una revisión visual específica para asegurar legibilidad suficiente sin postprocesado.
+5. **Propuesto para revisión (no implementado):** selector manual de calidad; telemetría local opcional de frame time; modo de batería; captura GPU con herramientas nativas de macOS.
+
+---
+
+## Fase — Cierre de findings P2 de rendimiento (2026-08-30)
+
+### Estado actual del proyecto / evaluación
+
+- Los tres findings de prioridad media quedaron abordados sin sumar controles, pantallas ni servicios: presupuesto GPU por hardware, asignaciones residuales en el frame loop y legibilidad del fallback sin bloom.
+- El renderer expone un diagnóstico interno estable con nombre de GPU, soporte de timer, p50/p90 GPU, nivel de calidad y DPR. No envía telemetría ni persiste datos.
+- En navegadores sin soporte para timer GPU se conserva el ajuste de emergencia por FPS; en renderizadores por software también se mantiene el piso de calidad previamente definido.
+
+### Objetivos actuales, modificaciones completadas y resultados de verificación
+
+- Añadidas consultas GPU asíncronas con EXT_disjoint_timer_query_webgl2. Los resultados se leen únicamente cuando están disponibles, sin forzar sincronización CPU/GPU.
+- La calidad usa ventanas de 60 muestras, percentil p90 e histéresis: degrada sobre 90% del presupuesto de 60 FPS y recupera debajo de 55%, con cinco segundos mínimos entre cambios.
+- El promedio de FPS se conserva como protección ante caídas severas; cuando hay timer GPU, la recuperación queda en manos de la medición GPU para evitar que ambos mecanismos compitan.
+- Game3D reutiliza los objetos de estado entregados a escena, serpiente y HUD. Snake3D reutiliza un único frame state, evita callbacks temporales en ojos y recicla los 320 vectores de estela una vez lleno el pool.
+- UI3D comparte una caché entre syncHUD/onFrame y solo actualiza nodos cuyo valor cambió. La palabra no reconstruye innerHTML si palabra, índice y modo de visibilidad permanecen iguales.
+- El fallback por software aumenta moderadamente exposición, contraste ambiental, superficie, halo y rails. La inspección visual sin bloom confirmó tablero, límites, personaje, sílabas y HUD claramente distinguibles.
+- QA hardware Chromium: timer GPU disponible; menú p50 0.34 ms / p90 0.47 ms; partida p50 0.81 ms / p90 1.12 ms a ~60 FPS y calidad 0.
+- QA determinista: p90 de 16 ms degrada nivel 0→1; p90 de 7 ms recupera 1→0. La estela termina con 320 puntos únicos y reutiliza exclusivamente el pool original después de 200 inserciones adicionales.
+- Mutaciones del HUD con valores estables: 24 por segundo antes del ajuste final, 0 después. Sin errores de runtime.
+- Verificación final: bun run lint, 16/16 tests, bunx tsc --noEmit, build Pages, build standalone y git diff --check pasan.
+
+### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
+
+1. **P1 — Confirmación en el Mac afectado:** sigue siendo necesaria una sesión sostenida en el equipo original para confirmar CPU, temperatura y memoria con Chrome/macOS real.
+2. **P3 — Soporte de timer GPU:** EXT_disjoint_timer_query_webgl2 no está disponible en todos los navegadores o drivers. El fallback por FPS está cubierto, pero ofrece menor precisión.
+3. **P3 — Ajuste estadístico:** los umbrales tienen histéresis y pruebas deterministas, pero conviene revisarlos únicamente si las mediciones de varios equipos reales muestran degradaciones visuales demasiado frecuentes.
+4. **Propuesto para revisión (no implementado):** selector manual de calidad, modo batería y captura GPU nativa de macOS continúan fuera de alcance hasta aprobación explícita.

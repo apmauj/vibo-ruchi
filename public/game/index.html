@@ -315,9 +315,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
       const ui = new UI3D(uiRoot, game);
       game.ui = ui;
       // Loop idle en menú (órbita)
-      game._running = true;
-      game._lastTime = performance.now();
-      game._raf = requestAnimationFrame(game._loop.bind(game));
+      game.startLoop();
       window.__game = game; window.__ui = ui;
     }
     if (document.readyState === 'complete') boot();

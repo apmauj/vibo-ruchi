@@ -9,7 +9,7 @@
     "build:pages": "prisma generate && node scripts/build-pages.mjs",
     "start": "node scripts/tee-run.mjs server.log node .next/standalone/server.js",
     "lint": "eslint .",
-    "test:player-data": "node --test tests/player-data-store.test.mjs tests/game-rules.test.mjs",
+    "test:player-data": "node --test tests/player-data-store.test.mjs tests/game-rules.test.mjs tests/render-performance.test.mjs",
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
