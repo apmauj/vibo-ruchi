@@ -509,3 +509,26 @@ Stage Summary:
 ### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
 
 - **P3 — Escaneo en dispositivos físicos:** el QR cumple estructura y contraste y fue renderizado correctamente, pero conviene confirmar una lectura con cámara iOS/Android después del próximo despliegue público.
+
+---
+
+## Ajuste de audio — Fondo musical procedural (2026-08-30)
+
+### Estado actual del proyecto / evaluación
+
+- El zumbido percibido no provenía de un leak: la música anterior sostenía cuatro ondas sinusoidales en un único acorde Do/Sol con vibrato permanente, sin ritmo, melodía ni cambios armónicos.
+- Los efectos de juego continúan siendo claros y no requirieron reemplazo. El clic era la única excepción por su onda cuadrada breve y comparativamente áspera.
+
+### Objetivos actuales, modificaciones completadas y resultados de verificación
+
+- Sustituido el drone continuo por un loop procedural de cuatro compases a 96 BPM, progresión Do–Lam–Fa–Sol, melodía ligera, bajo discreto y acordes filtrados.
+- Cada voz usa envolvente y se desconecta al terminar; las tablas musicales se mantienen fuera del scheduler para no generar arrays en cada paso.
+- El transporte utiliza un único temporizador con 140 ms de anticipación, descarta backlog después de una pestaña suspendida y conserva fade de entrada/salida.
+- El clic ahora usa una onda triangular más suave, con menor ganancia y un ascenso tonal corto. Los demás SFX no cambiaron.
+- Prueba de ciclo de vida con AudioContext simulado: inicio idempotente, reinicio durante fade, un solo scheduler y 0 buses/nodos persistentes tras detenerse.
+- Verificación: ESLint específico, build de producción y git diff --check pasan.
+
+### Problemas sin resolver o riesgos, y recomendaciones de prioridad para la siguiente fase
+
+1. **P2 — Balance auditivo en hardware real:** la composición y el ciclo técnico están verificados, pero volumen, timbre y fatiga requieren una escucha breve en Chrome/macOS y móvil antes de fijar el mix definitivo.
+2. **P3 — QA automatizado del navegador:** el controlador integrado no pudo iniciar por un fallo del sandbox local, ajeno a la aplicación. Conviene repetir el smoke interactivo cuando ese entorno esté disponible.

@@ -1,10 +1,26 @@
 // audio3d.js — SFX procedurales con Web Audio API (sin assets externos)
 // Sonido amigable para niños: ding cristalino, boop suave, fanfarria breve.
 
+const MUSIC_BPM = 96;
+const MUSIC_STEPS_PER_BEAT = 2;
+const MUSIC_CHORDS = [
+  [130.81, 164.81, 196.00],
+  [110.00, 130.81, 164.81],
+  [87.31, 110.00, 130.81],
+  [98.00, 123.47, 146.83],
+];
+const MUSIC_MELODY = [
+  659.25, null, 783.99, null, 880.00, null, 783.99, null,
+  659.25, null, 523.25, null, 659.25, null, 880.00, null,
+  440.00, null, 523.25, null, 659.25, null, 523.25, null,
+  587.33, null, 783.99, null, 493.88, null, 587.33, null,
+];
+
 class AudioEngine {
   constructor() {
     this.ctx = null; this.master = null; this.musicGain = null; this.sfxGain = null;
     this.enabled = true; this.musicOn = true; this.musicNodes = []; this._started = false; this._stopTimer = null;
+    this._musicTimer = null; this._musicBus = null; this._nextMusicNoteTime = 0; this._musicStep = 0;
   }
   ensure() {
     if (this._started) return; this._started = true;
@@ -87,41 +103,94 @@ class AudioEngine {
     this._tone(1800, t, 0.018, 'sine', 0.04);
   }
   click() { const t = this.ctx ? this.ctx.currentTime : 0;
-    this._tone(700, t, 0.04, 'square', 0.12, 200);
+    // Pulso corto y redondeado: evita el borde áspero de la onda cuadrada.
+    this._tone(620, t, 0.055, 'triangle', 0.08, 90);
   }
 
   // --- Música ambiental ---
+  _musicTone(freq, t0, dur, { type = 'triangle', gain = 0.06, attack = 0.012, cutoff = 1800 } = {}) {
+    if (!this.ctx || !this._musicBus || !this.enabled || !this.musicOn) return;
+    const osc = this.ctx.createOscillator();
+    const filter = this.ctx.createBiquadFilter();
+    const envelope = this.ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(freq, t0);
+    filter.type = 'lowpass'; filter.frequency.setValueAtTime(cutoff, t0); filter.Q.value = 0.7;
+    envelope.gain.setValueAtTime(0.0001, t0);
+    envelope.gain.exponentialRampToValueAtTime(gain, t0 + attack);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(filter); filter.connect(envelope); envelope.connect(this._musicBus);
+    osc.onended = () => { osc.disconnect(); filter.disconnect(); envelope.disconnect(); };
+    osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+
+  _scheduleMusicStep(step, t0) {
+    // Cuatro compases a 96 BPM: Do - Lam - Fa - Sol.
+    const localStep = step % MUSIC_MELODY.length;
+    const bar = Math.floor(localStep / 8);
+    if (localStep % 8 === 0) {
+      MUSIC_CHORDS[bar].forEach((freq) => this._musicTone(freq, t0, 2.35, {
+        type: 'sine', gain: 0.034, attack: 0.14, cutoff: 1100,
+      }));
+    }
+    if (localStep % 4 === 0) {
+      this._musicTone(MUSIC_CHORDS[bar][0] / 2, t0, 0.62, {
+        type: 'sine', gain: 0.045, attack: 0.025, cutoff: 500,
+      });
+    }
+    const note = MUSIC_MELODY[localStep];
+    if (note) this._musicTone(note, t0, 0.24, {
+      type: 'triangle', gain: localStep % 8 === 0 ? 0.072 : 0.058, cutoff: 2400,
+    });
+  }
+
+  _runMusicScheduler() {
+    if (!this.ctx || !this._musicBus || this._musicTimer) return;
+    const secondsPerStep = 60 / MUSIC_BPM / MUSIC_STEPS_PER_BEAT;
+    const tick = () => {
+      this._musicTimer = null;
+      if (!this.ctx || !this._musicBus) return;
+      // Evita recuperar cientos de notas después de que el navegador suspenda la pestaña.
+      if (this._nextMusicNoteTime < this.ctx.currentTime - secondsPerStep) {
+        this._nextMusicNoteTime = this.ctx.currentTime + 0.05;
+      }
+      while (this._nextMusicNoteTime < this.ctx.currentTime + 0.14) {
+        this._scheduleMusicStep(this._musicStep, this._nextMusicNoteTime);
+        this._musicStep = (this._musicStep + 1) % MUSIC_MELODY.length;
+        this._nextMusicNoteTime += secondsPerStep;
+      }
+      this._musicTimer = setTimeout(tick, 50);
+    };
+    tick();
+  }
+
   startMusic() {
     if (!this.ctx || !this.musicOn || !this.enabled) return;
     if (this._stopTimer) { clearTimeout(this._stopTimer); this._stopTimer = null; }
-    if (this.musicNodes.length) {
-      if (this._musicPad) this._musicPad.gain.setTargetAtTime(0.8, this.ctx.currentTime, 0.15);
+    if (this._musicBus) {
+      const now = this.ctx.currentTime;
+      this._musicBus.gain.cancelScheduledValues(now);
+      this._musicBus.gain.setTargetAtTime(0.78, now, 0.12);
+      this._nextMusicNoteTime = Math.max(this._nextMusicNoteTime, now + 0.05);
+      this._runMusicScheduler();
       return;
     }
-    // Acorde pad suave en Do mayor con leve vibrato
-    const pad = this.ctx.createGain(); pad.gain.value = 0; pad.connect(this.musicGain);
-    pad.gain.setTargetAtTime(0.8, this.ctx.currentTime, 1.5);
-    const freqs = [130.81, 196.00, 261.63, 392.00]; // C3 G3 C4 G4
-    for (const f of freqs) {
-      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
-      const lfo = this.ctx.createOscillator(); lfo.frequency.value = 0.18 + Math.random() * 0.12;
-      const lfoG = this.ctx.createGain(); lfoG.gain.value = 1.5;
-      lfo.connect(lfoG); lfoG.connect(o.frequency);
-      const g = this.ctx.createGain(); g.gain.value = 0.18;
-      o.connect(g); g.connect(pad);
-      o.start(); lfo.start();
-      this.musicNodes.push(o, lfo);
-    }
-    this.musicNodes.push(pad);
-    this._musicPad = pad;
+    const bus = this.ctx.createGain();
+    const tone = this.ctx.createBiquadFilter();
+    bus.gain.value = 0; tone.type = 'lowpass'; tone.frequency.value = 4200; tone.Q.value = 0.35;
+    bus.connect(tone); tone.connect(this.musicGain);
+    bus.gain.setTargetAtTime(0.78, this.ctx.currentTime, 0.45);
+    this.musicNodes.push(bus, tone); this._musicBus = bus;
+    this._musicStep = 0; this._nextMusicNoteTime = this.ctx.currentTime + 0.06;
+    this._runMusicScheduler();
   }
   stopMusic() {
     if (!this.ctx) return;
     if (this._stopTimer) clearTimeout(this._stopTimer);
-    if (this._musicPad) this._musicPad.gain.setTargetAtTime(0, this.ctx.currentTime, 0.4);
+    if (this._musicTimer) { clearTimeout(this._musicTimer); this._musicTimer = null; }
+    if (this._musicBus) this._musicBus.gain.setTargetAtTime(0, this.ctx.currentTime, 0.25);
     this._stopTimer = setTimeout(() => {
       for (const n of this.musicNodes) { try { if (n.stop) n.stop(); if (n.disconnect) n.disconnect(); } catch (e) {} }
-      this.musicNodes = []; this._musicPad = null;
+      this.musicNodes = []; this._musicBus = null;
       this._stopTimer = null;
     }, 700);
   }
