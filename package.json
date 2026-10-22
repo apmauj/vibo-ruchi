@@ -2,6 +2,7 @@
   "name": "nextjs_tailwind_shadcn_ts",
   "version": "0.2.1",
   "private": true,
+  "packageManager": "bun@1.4.4",
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "node scripts/tee-run.mjs dev.log next dev -p 3000",
